@@ -333,6 +333,7 @@ export default function CreateStreamPage() {
                 value={unlockDate}
                 onDateChange={(date) => setUnlockDate(updateDatePart(unlockDate, date))}
                 onTimeChange={(time) => setUnlockDate(updateTimePart(unlockDate, time))}
+                onNowChange={() => setUnlockDate(formatScheduleInputNow())}
               />
             </div>
           </div>
@@ -346,6 +347,7 @@ export default function CreateStreamPage() {
                 value={startDate}
                 onDateChange={(date) => setStartDate(updateDatePart(startDate, date))}
                 onTimeChange={(time) => setStartDate(updateTimePart(startDate, time))}
+                onNowChange={() => setStartDate(formatScheduleInputNow())}
               />
               <ScheduleDateTimeField
                 id="end"
@@ -353,6 +355,7 @@ export default function CreateStreamPage() {
                 value={endDate}
                 onDateChange={(date) => setEndDate(updateDatePart(endDate, date))}
                 onTimeChange={(time) => setEndDate(updateTimePart(endDate, time))}
+                onNowChange={() => setEndDate(formatScheduleInputNow())}
               />
             </div>
           </div>
@@ -369,6 +372,7 @@ export default function CreateStreamPage() {
                 value={milestoneDate}
                 onDateChange={(date) => setMilestoneDate(updateDatePart(milestoneDate, date))}
                 onTimeChange={(time) => setMilestoneDate(updateTimePart(milestoneDate, time))}
+                onNowChange={() => setMilestoneDate(formatScheduleInputNow())}
               />
             </div>
           </div>
@@ -443,6 +447,7 @@ type ScheduleDateTimeFieldProps = {
   optionalLabel?: string;
   onDateChange: (date: string) => void;
   onTimeChange: (time: string) => void;
+  onNowChange: () => void;
 };
 
 function getVestingTypeLabel(vestingType: VestingType) {
@@ -493,6 +498,7 @@ function ScheduleDateTimeField({
   optionalLabel,
   onDateChange,
   onTimeChange,
+  onNowChange,
 }: ScheduleDateTimeFieldProps) {
   const calendarRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
@@ -536,6 +542,19 @@ function ScheduleDateTimeField({
         <div className="flex items-center gap-3">
           <label htmlFor={`${id}-date-trigger`} className="px-1 text-sm font-semibold text-violet-600">{label}</label>
           {optionalLabel ? <span className="text-[11px] font-medium text-zinc-400">{optionalLabel}</span> : null}
+          <button
+            type="button"
+            onClick={() => {
+              onNowChange();
+              setCalendarOpen(false);
+              setTimeOpen(false);
+              setTimeDraft(formatInputTime(new Date()));
+              setTimeEditing(false);
+            }}
+            className="ml-auto cursor-pointer rounded-full border border-violet-100 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 transition-colors hover:border-violet-200 hover:bg-violet-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/15"
+          >
+            Now
+          </button>
         </div>
         <div ref={calendarRef} className="relative">
           <button
@@ -703,6 +722,19 @@ function formatInputDate(date: Date) {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function formatInputTime(date: Date) {
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+
+  return `${hour}:${minute}`;
+}
+
+function formatScheduleInputNow() {
+  const now = new Date();
+
+  return `${formatInputDate(now)}T${formatInputTime(now)}`;
 }
 
 function normalizeTimeInput(value: string) {

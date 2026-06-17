@@ -123,6 +123,7 @@ export default function CreateStreamPage() {
       if (!endDate) return "End date is required";
       const start = Math.floor(new Date(startDate).getTime() / 1000);
       const end = Math.floor(new Date(endDate).getTime() / 1000);
+      if (isScheduleInputInPast(startDate)) return "Start date cannot be in the past";
       if (isScheduleInputInPast(endDate)) return "End date cannot be in the past";
       if (start >= end) return "Start date must be before end date";
       return null;
@@ -176,8 +177,22 @@ export default function CreateStreamPage() {
 
   const getDatePart = (value: string) => value.split("T")[0] ?? "";
   const getTimePart = (value: string) => value.split("T")[1] ?? "";
-  const updateDatePart = (value: string, date: string) => `${date}T${getTimePart(value) || "00:00"}`;
+  const updateGuardedDatePart = (value: string, date: string) => {
+    const existingTime = getTimePart(value);
+    const fallbackTime = isInputDateToday(date) ? formatInputTime(new Date()) : "00:00";
+
+    return `${date}T${existingTime || fallbackTime}`;
+  };
   const updateTimePart = (value: string, time: string) => `${getDatePart(value) || new Date().toISOString().slice(0, 10)}T${time}`;
+  const setStartDateIfValid = (nextValue: string) => {
+    if (isScheduleInputInPast(nextValue)) {
+      setValidationError("Start date cannot be in the past");
+      return;
+    }
+
+    setValidationError("");
+    setStartDate(nextValue);
+  };
   const setUnlockDateIfValid = (nextValue: string) => {
     if (isScheduleInputInPast(nextValue)) {
       setValidationError("Unlock date cannot be in the past");
@@ -362,7 +377,7 @@ export default function CreateStreamPage() {
                 label="Unlock Date"
                 value={unlockDate}
                 minDateTime={new Date()}
-                onDateChange={(date) => setUnlockDateIfValid(updateDatePart(unlockDate, date))}
+                onDateChange={(date) => setUnlockDateIfValid(updateGuardedDatePart(unlockDate, date))}
                 onTimeChange={(time) => setUnlockDateIfValid(updateTimePart(unlockDate, time))}
                 onInvalidDateTime={() => setValidationError("Unlock date cannot be in the past")}
                 onNowChange={() => {
@@ -380,16 +395,21 @@ export default function CreateStreamPage() {
                 id="start"
                 label="Start Date"
                 value={startDate}
-                onDateChange={(date) => setStartDate(updateDatePart(startDate, date))}
-                onTimeChange={(time) => setStartDate(updateTimePart(startDate, time))}
-                onNowChange={() => setStartDate(formatScheduleInputNow())}
+                minDateTime={new Date()}
+                onDateChange={(date) => setStartDateIfValid(updateGuardedDatePart(startDate, date))}
+                onTimeChange={(time) => setStartDateIfValid(updateTimePart(startDate, time))}
+                onInvalidDateTime={() => setValidationError("Start date cannot be in the past")}
+                onNowChange={() => {
+                  setValidationError("");
+                  setStartDate(formatScheduleInputNow());
+                }}
               />
               <ScheduleDateTimeField
                 id="end"
                 label="End Date"
                 value={endDate}
                 minDateTime={new Date()}
-                onDateChange={(date) => setEndDateIfValid(updateDatePart(endDate, date))}
+                onDateChange={(date) => setEndDateIfValid(updateGuardedDatePart(endDate, date))}
                 onTimeChange={(time) => setEndDateIfValid(updateTimePart(endDate, time))}
                 onInvalidDateTime={() => setValidationError("End date cannot be in the past")}
               />
@@ -407,7 +427,7 @@ export default function CreateStreamPage() {
                 label="Gate Date"
                 value={milestoneDate}
                 minDateTime={new Date()}
-                onDateChange={(date) => setMilestoneDateIfValid(updateDatePart(milestoneDate, date))}
+                onDateChange={(date) => setMilestoneDateIfValid(updateGuardedDatePart(milestoneDate, date))}
                 onTimeChange={(time) => setMilestoneDateIfValid(updateTimePart(milestoneDate, time))}
                 onInvalidDateTime={() => setValidationError("Milestone gate date cannot be in the past")}
                 onNowChange={() => {
@@ -793,6 +813,10 @@ function formatInputDate(date: Date) {
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function isInputDateToday(value: string) {
+  return value === formatInputDate(new Date());
 }
 
 function formatInputTime(date: Date) {

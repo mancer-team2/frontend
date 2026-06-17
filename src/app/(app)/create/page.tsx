@@ -365,6 +365,10 @@ export default function CreateStreamPage() {
                 onDateChange={(date) => setUnlockDateIfValid(updateDatePart(unlockDate, date))}
                 onTimeChange={(time) => setUnlockDateIfValid(updateTimePart(unlockDate, time))}
                 onInvalidDateTime={() => setValidationError("Unlock date cannot be in the past")}
+                onNowChange={() => {
+                  setValidationError("");
+                  setUnlockDate(formatScheduleInputNow());
+                }}
               />
             </div>
           </div>
@@ -406,6 +410,10 @@ export default function CreateStreamPage() {
                 onDateChange={(date) => setMilestoneDateIfValid(updateDatePart(milestoneDate, date))}
                 onTimeChange={(time) => setMilestoneDateIfValid(updateTimePart(milestoneDate, time))}
                 onInvalidDateTime={() => setValidationError("Milestone gate date cannot be in the past")}
+                onNowChange={() => {
+                  setValidationError("");
+                  setMilestoneDate(formatScheduleInputNow());
+                }}
               />
             </div>
           </div>

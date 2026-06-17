@@ -115,6 +115,7 @@ export default function CreateStreamPage() {
     }
     if (vestingType === "cliff") {
       if (!unlockDate) return "Unlock date is required";
+      if (isScheduleInputInPast(unlockDate)) return "Unlock date cannot be in the past";
       return null;
     }
     if (vestingType === "linear") {
@@ -122,10 +123,13 @@ export default function CreateStreamPage() {
       if (!endDate) return "End date is required";
       const start = Math.floor(new Date(startDate).getTime() / 1000);
       const end = Math.floor(new Date(endDate).getTime() / 1000);
+      if (isScheduleInputInPast(startDate)) return "Start date cannot be in the past";
+      if (isScheduleInputInPast(endDate)) return "End date cannot be in the past";
       if (start >= end) return "Start date must be before end date";
       return null;
     }
     if (!milestoneDate) return "Milestone gate date is required";
+    if (isScheduleInputInPast(milestoneDate)) return "Milestone gate date cannot be in the past";
     return null;
   };
 
@@ -173,8 +177,49 @@ export default function CreateStreamPage() {
 
   const getDatePart = (value: string) => value.split("T")[0] ?? "";
   const getTimePart = (value: string) => value.split("T")[1] ?? "";
-  const updateDatePart = (value: string, date: string) => `${date}T${getTimePart(value) || "00:00"}`;
+  const updateGuardedDatePart = (value: string, date: string) => {
+    const existingTime = getTimePart(value);
+    const fallbackTime = isInputDateToday(date) ? formatInputTime(new Date()) : "00:00";
+
+    return `${date}T${existingTime || fallbackTime}`;
+  };
   const updateTimePart = (value: string, time: string) => `${getDatePart(value) || new Date().toISOString().slice(0, 10)}T${time}`;
+  const setStartDateIfValid = (nextValue: string) => {
+    if (isScheduleInputInPast(nextValue)) {
+      setValidationError("Start date cannot be in the past");
+      return;
+    }
+
+    setValidationError("");
+    setStartDate(nextValue);
+  };
+  const setUnlockDateIfValid = (nextValue: string) => {
+    if (isScheduleInputInPast(nextValue)) {
+      setValidationError("Unlock date cannot be in the past");
+      return;
+    }
+
+    setValidationError("");
+    setUnlockDate(nextValue);
+  };
+  const setEndDateIfValid = (nextValue: string) => {
+    if (isScheduleInputInPast(nextValue)) {
+      setValidationError("End date cannot be in the past");
+      return;
+    }
+
+    setValidationError("");
+    setEndDate(nextValue);
+  };
+  const setMilestoneDateIfValid = (nextValue: string) => {
+    if (isScheduleInputInPast(nextValue)) {
+      setValidationError("Milestone gate date cannot be in the past");
+      return;
+    }
+
+    setValidationError("");
+    setMilestoneDate(nextValue);
+  };
 
   const displayError = validationError || txError;
 
@@ -331,8 +376,14 @@ export default function CreateStreamPage() {
                 id="unlock"
                 label="Unlock Date"
                 value={unlockDate}
-                onDateChange={(date) => setUnlockDate(updateDatePart(unlockDate, date))}
-                onTimeChange={(time) => setUnlockDate(updateTimePart(unlockDate, time))}
+                minDateTime={new Date()}
+                onDateChange={(date) => setUnlockDateIfValid(updateGuardedDatePart(unlockDate, date))}
+                onTimeChange={(time) => setUnlockDateIfValid(updateTimePart(unlockDate, time))}
+                onInvalidDateTime={() => setValidationError("Unlock date cannot be in the past")}
+                onNowChange={() => {
+                  setValidationError("");
+                  setUnlockDate(formatScheduleInputNow());
+                }}
               />
             </div>
           </div>
@@ -344,15 +395,23 @@ export default function CreateStreamPage() {
                 id="start"
                 label="Start Date"
                 value={startDate}
-                onDateChange={(date) => setStartDate(updateDatePart(startDate, date))}
-                onTimeChange={(time) => setStartDate(updateTimePart(startDate, time))}
+                minDateTime={new Date()}
+                onDateChange={(date) => setStartDateIfValid(updateGuardedDatePart(startDate, date))}
+                onTimeChange={(time) => setStartDateIfValid(updateTimePart(startDate, time))}
+                onInvalidDateTime={() => setValidationError("Start date cannot be in the past")}
+                onNowChange={() => {
+                  setValidationError("");
+                  setStartDate(formatScheduleInputNow());
+                }}
               />
               <ScheduleDateTimeField
                 id="end"
                 label="End Date"
                 value={endDate}
-                onDateChange={(date) => setEndDate(updateDatePart(endDate, date))}
-                onTimeChange={(time) => setEndDate(updateTimePart(endDate, time))}
+                minDateTime={new Date()}
+                onDateChange={(date) => setEndDateIfValid(updateGuardedDatePart(endDate, date))}
+                onTimeChange={(time) => setEndDateIfValid(updateTimePart(endDate, time))}
+                onInvalidDateTime={() => setValidationError("End date cannot be in the past")}
               />
             </div>
           </div>
@@ -367,8 +426,14 @@ export default function CreateStreamPage() {
                 id="milestone"
                 label="Gate Date"
                 value={milestoneDate}
-                onDateChange={(date) => setMilestoneDate(updateDatePart(milestoneDate, date))}
-                onTimeChange={(time) => setMilestoneDate(updateTimePart(milestoneDate, time))}
+                minDateTime={new Date()}
+                onDateChange={(date) => setMilestoneDateIfValid(updateGuardedDatePart(milestoneDate, date))}
+                onTimeChange={(time) => setMilestoneDateIfValid(updateTimePart(milestoneDate, time))}
+                onInvalidDateTime={() => setValidationError("Milestone gate date cannot be in the past")}
+                onNowChange={() => {
+                  setValidationError("");
+                  setMilestoneDate(formatScheduleInputNow());
+                }}
               />
             </div>
           </div>
@@ -443,6 +508,9 @@ type ScheduleDateTimeFieldProps = {
   optionalLabel?: string;
   onDateChange: (date: string) => void;
   onTimeChange: (time: string) => void;
+  onNowChange?: () => void;
+  minDateTime?: Date;
+  onInvalidDateTime?: () => void;
 };
 
 function getVestingTypeLabel(vestingType: VestingType) {
@@ -493,6 +561,9 @@ function ScheduleDateTimeField({
   optionalLabel,
   onDateChange,
   onTimeChange,
+  onNowChange,
+  minDateTime,
+  onInvalidDateTime,
 }: ScheduleDateTimeFieldProps) {
   const calendarRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLDivElement>(null);
@@ -536,6 +607,21 @@ function ScheduleDateTimeField({
         <div className="flex items-center gap-3">
           <label htmlFor={`${id}-date-trigger`} className="px-1 text-sm font-semibold text-violet-600">{label}</label>
           {optionalLabel ? <span className="text-[11px] font-medium text-zinc-400">{optionalLabel}</span> : null}
+          {onNowChange ? (
+            <button
+              type="button"
+              onClick={() => {
+                onNowChange();
+                setCalendarOpen(false);
+                setTimeOpen(false);
+                setTimeDraft(formatInputTime(new Date()));
+                setTimeEditing(false);
+              }}
+              className="ml-auto cursor-pointer rounded-full border border-violet-100 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700 transition-colors hover:border-violet-200 hover:bg-violet-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/15"
+            >
+              Now
+            </button>
+          ) : null}
         </div>
         <div ref={calendarRef} className="relative">
           <button
@@ -578,23 +664,32 @@ function ScheduleDateTimeField({
                   const inCurrentMonth = day.getMonth() === calendarMonth.getMonth();
                   const selected = selectedDate ? isSameCalendarDay(day, selectedDate) : false;
                   const isToday = isSameCalendarDay(day, today);
+                  const disabled = minDateTime ? isBeforeCalendarDay(day, minDateTime) : false;
 
                   return (
                     <button
                       key={day.toISOString()}
                       type="button"
                       onClick={() => {
+                        if (disabled) {
+                          onInvalidDateTime?.();
+                          return;
+                        }
+
                         onDateChange(formatInputDate(day));
                         setCalendarOpen(false);
                       }}
-                      className={`mx-auto flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl text-sm transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/15 ${
-                        selected
+                      aria-disabled={disabled}
+                      className={`mx-auto flex h-9 w-9 items-center justify-center rounded-xl text-sm transition-colors focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/15 ${
+                        disabled
+                          ? "cursor-not-allowed text-zinc-300"
+                          : selected
                           ? "bg-zinc-100 font-semibold text-zinc-950"
                           : isToday
                             ? "bg-zinc-100 font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-200"
                           : inCurrentMonth
-                            ? "text-zinc-950 hover:bg-zinc-50"
-                            : "text-zinc-400 hover:bg-zinc-50"
+                            ? "cursor-pointer text-zinc-950 hover:bg-zinc-50"
+                            : "cursor-pointer text-zinc-400 hover:bg-zinc-50"
                       }`}
                     >
                       {day.getDate()}
@@ -623,6 +718,14 @@ function ScheduleDateTimeField({
             onChange={(event) => setTimeDraft(normalizeTimeInput(event.target.value))}
             onBlur={(event) => {
               const nextTime = completeTimeInput(event.target.value);
+              const nextValue = `${date || formatInputDate(new Date())}T${nextTime}`;
+              if (minDateTime && isScheduleInputBeforeDate(nextValue, minDateTime)) {
+                setTimeDraft(timeLabel);
+                setTimeEditing(false);
+                onInvalidDateTime?.();
+                return;
+              }
+
               setTimeDraft(nextTime);
               setTimeEditing(false);
               onTimeChange(nextTime);
@@ -697,12 +800,47 @@ function isSameCalendarDay(a: Date, b: Date) {
     && a.getDate() === b.getDate();
 }
 
+function isBeforeCalendarDay(a: Date, b: Date) {
+  const first = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+  const second = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+
+  return first < second;
+}
+
 function formatInputDate(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function isInputDateToday(value: string) {
+  return value === formatInputDate(new Date());
+}
+
+function formatInputTime(date: Date) {
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+
+  return `${hour}:${minute}`;
+}
+
+function formatScheduleInputNow() {
+  const now = new Date();
+
+  return `${formatInputDate(now)}T${formatInputTime(now)}`;
+}
+
+function isScheduleInputInPast(value: string) {
+  return isScheduleInputBeforeDate(value, new Date());
+}
+
+function isScheduleInputBeforeDate(value: string, date: Date) {
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) return false;
+
+  return timestamp < date.getTime();
 }
 
 function normalizeTimeInput(value: string) {

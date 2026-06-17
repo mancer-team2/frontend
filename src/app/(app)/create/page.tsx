@@ -115,6 +115,7 @@ export default function CreateStreamPage() {
     }
     if (vestingType === "cliff") {
       if (!unlockDate) return "Unlock date is required";
+      if (isScheduleInputInPast(unlockDate)) return "Unlock date cannot be in the past";
       return null;
     }
     if (vestingType === "linear") {
@@ -127,6 +128,7 @@ export default function CreateStreamPage() {
       return null;
     }
     if (!milestoneDate) return "Milestone gate date is required";
+    if (isScheduleInputInPast(milestoneDate)) return "Milestone gate date cannot be in the past";
     return null;
   };
 
@@ -176,6 +178,15 @@ export default function CreateStreamPage() {
   const getTimePart = (value: string) => value.split("T")[1] ?? "";
   const updateDatePart = (value: string, date: string) => `${date}T${getTimePart(value) || "00:00"}`;
   const updateTimePart = (value: string, time: string) => `${getDatePart(value) || new Date().toISOString().slice(0, 10)}T${time}`;
+  const setUnlockDateIfValid = (nextValue: string) => {
+    if (isScheduleInputInPast(nextValue)) {
+      setValidationError("Unlock date cannot be in the past");
+      return;
+    }
+
+    setValidationError("");
+    setUnlockDate(nextValue);
+  };
   const setEndDateIfValid = (nextValue: string) => {
     if (isScheduleInputInPast(nextValue)) {
       setValidationError("End date cannot be in the past");
@@ -184,6 +195,15 @@ export default function CreateStreamPage() {
 
     setValidationError("");
     setEndDate(nextValue);
+  };
+  const setMilestoneDateIfValid = (nextValue: string) => {
+    if (isScheduleInputInPast(nextValue)) {
+      setValidationError("Milestone gate date cannot be in the past");
+      return;
+    }
+
+    setValidationError("");
+    setMilestoneDate(nextValue);
   };
 
   const displayError = validationError || txError;
@@ -341,8 +361,10 @@ export default function CreateStreamPage() {
                 id="unlock"
                 label="Unlock Date"
                 value={unlockDate}
-                onDateChange={(date) => setUnlockDate(updateDatePart(unlockDate, date))}
-                onTimeChange={(time) => setUnlockDate(updateTimePart(unlockDate, time))}
+                minDateTime={new Date()}
+                onDateChange={(date) => setUnlockDateIfValid(updateDatePart(unlockDate, date))}
+                onTimeChange={(time) => setUnlockDateIfValid(updateTimePart(unlockDate, time))}
+                onInvalidDateTime={() => setValidationError("Unlock date cannot be in the past")}
               />
             </div>
           </div>
@@ -380,8 +402,10 @@ export default function CreateStreamPage() {
                 id="milestone"
                 label="Gate Date"
                 value={milestoneDate}
-                onDateChange={(date) => setMilestoneDate(updateDatePart(milestoneDate, date))}
-                onTimeChange={(time) => setMilestoneDate(updateTimePart(milestoneDate, time))}
+                minDateTime={new Date()}
+                onDateChange={(date) => setMilestoneDateIfValid(updateDatePart(milestoneDate, date))}
+                onTimeChange={(time) => setMilestoneDateIfValid(updateTimePart(milestoneDate, time))}
+                onInvalidDateTime={() => setValidationError("Milestone gate date cannot be in the past")}
               />
             </div>
           </div>
